@@ -32,9 +32,10 @@ namespace NZWalks.API.Controllers
 
         [HttpGet]
         [Route("{id}")]
-        public async Task<IActionResult> GetById([FromRoute] Guid id) {
+        public async Task<IActionResult> GetById([FromRoute] Guid id)
+        {
             var region = await regionRepositery.GetByIdAsync(id);
-            
+
             if (region == null)
             {
                 return NotFound();
@@ -43,29 +44,44 @@ namespace NZWalks.API.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Create([FromBody] AddRegionRequestDto addRegionRequestDto) {
-            var regionDomainModel = mapper.Map<Region>(addRegionRequestDto);
-            regionDomainModel = await regionRepositery.CreateAsync(regionDomainModel);
-            var regionDto = mapper.Map<RegionDto>(regionDomainModel);
-            return CreatedAtAction(nameof(GetById), new { id = regionDomainModel.Id}, regionDomainModel);
+        public async Task<IActionResult> Create([FromBody] AddRegionRequestDto addRegionRequestDto)
+        {
+
+            if (ModelState.IsValid)
+            {
+                var regionDomainModel = mapper.Map<Region>(addRegionRequestDto);
+                regionDomainModel = await regionRepositery.CreateAsync(regionDomainModel);
+                var regionDto = mapper.Map<RegionDto>(regionDomainModel);
+                return CreatedAtAction(nameof(GetById), new { id = regionDomainModel.Id }, regionDomainModel);
+            }
+            else { return BadRequest(); }
+
+
         }
 
         [HttpPut]
         [Route("{id}")]
-        public async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] UpdateRegionRequestDto updateRegionRequestDto) {
-            var regionDomainModel = mapper.Map<Region>(updateRegionRequestDto);
-              regionDomainModel =  await regionRepositery.UpdateAsync(id, regionDomainModel);
-            if (regionDomainModel == null)
+        public async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] UpdateRegionRequestDto updateRegionRequestDto)
+        {
+
+            if (ModelState.IsValid)
             {
-                return NotFound();
+                var regionDomainModel = mapper.Map<Region>(updateRegionRequestDto);
+                regionDomainModel = await regionRepositery.UpdateAsync(id, regionDomainModel);
+                if (regionDomainModel == null)
+                {
+                    return NotFound();
+                }
+                return Ok(mapper.Map<RegionDto>(regionDomainModel));
             }
-            return Ok(mapper.Map<RegionDto>(regionDomainModel)); 
+            else { return BadRequest(); }
         }
 
         [HttpDelete]
         [Route("{id}")]
 
-        public async Task<IActionResult> Delete([FromRoute] Guid id) {
+        public async Task<IActionResult> Delete([FromRoute] Guid id)
+        {
             var regionDomainModel = await regionRepositery.DeleteAsync(id);
             if (regionDomainModel == null)
             {
