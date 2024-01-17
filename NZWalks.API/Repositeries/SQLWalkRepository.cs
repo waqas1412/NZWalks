@@ -19,9 +19,16 @@ namespace NZWalks.API.Repositeries
             return walk;
         }
 
-        public async Task<List<Walk>> GetAllAsync()
+        public async Task<List<Walk>> GetAllAsync(string? name = null)
         {
-            return await nZWalksDBContext.Walks.Include("Difficulty").Include("Region").ToListAsync();
+        //    return await nZWalksDBContext.Walks.Include("Difficulty").Include("Region").ToListAsync();
+            var walks = nZWalksDBContext.Walks.Include("Difficulty").Include("Region").AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(name))
+            {
+                walks = walks.Where(x => x.Name.Contains(name));
+            }
+            return await walks.ToListAsync();
         }
 
         public async Task<Walk?> GetByIdAsync(int id)
