@@ -20,7 +20,7 @@ namespace NZWalks.API.Repositeries
             return walk;
         }
 
-        public async Task<List<Walk>> GetAllAsync(string? name = null, string? sortBy = null, bool isAscending = true)
+        public async Task<List<Walk>> GetAllAsync(string? name = null, string? sortBy = null, bool isAscending = true, int pageNumber = 1, int pageSize = 10)
         {
             //    return await nZWalksDBContext.Walks.Include("Difficulty").Include("Region").ToListAsync();
             var walks = nZWalksDBContext.Walks.Include("Difficulty").Include("Region").AsQueryable();
@@ -45,7 +45,12 @@ namespace NZWalks.API.Repositeries
                 }
             }
 
-            return await walks.ToListAsync();
+            //Pagination 
+
+            var skip = (pageNumber - 1) * pageSize;
+
+
+            return await walks.Skip(skip).Take(pageSize).ToListAsync();
         }
 
         public async Task<Walk?> GetByIdAsync(int id)
