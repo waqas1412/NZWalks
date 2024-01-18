@@ -16,6 +16,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 builder.Services.AddDbContext<NZWalksDBContext>(option => option.UseSqlServer(builder.Configuration.GetConnectionString("NZWalksConnectionString")));
+builder.Services.AddDbContext<NZWalksAuthDbContext>(option => option.UseSqlServer(builder.Configuration.GetConnectionString("NZWalksAuthConnectionString")));
 builder.Services.AddScoped<IRegionRepositery, SQLRegionRepositery>();
 builder.Services.AddScoped<IWalkRepository, SQLWalkRepository>();
 builder.Services.AddAutoMapper(typeof(AutoMapperProfile));
