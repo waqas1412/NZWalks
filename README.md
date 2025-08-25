@@ -8,7 +8,7 @@
 [![Swagger](https://img.shields.io/badge/Swagger-85EA2D?style=for-the-badge&logo=swagger&logoColor=black)](https://swagger.io/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
-A comprehensive RESTful API for managing New Zealand walking trails and regions. Built with ASP.NET Core 8.0, featuring JWT authentication, role-based authorization, and modern development practices.
+A comprehensive RESTful API for managing New Zealand walking trails and regions. Built with ASP.NET Core 8.0, featuring JWT authentication, role-based authorization, local image storage, and modern development practices.
 
 ## 📋 Table of Contents
 
@@ -26,26 +26,28 @@ A comprehensive RESTful API for managing New Zealand walking trails and regions.
 
 ## ✨ Features
 
-- **🔐 JWT Authentication & Authorization** - Secure user authentication with role-based access control
-- **🏔️ Walk Management** - CRUD operations for walking trails with filtering, sorting, and pagination
+- **🔐 JWT Authentication** - Secure user authentication with 10-minute token expiration
+- **👥 Role-Based Authorization** - Reader and Writer roles with granular permissions
+- **🏔️ Walk Management** - CRUD operations for walking trails with advanced filtering and pagination
 - **🗺️ Region Management** - Manage New Zealand regions with associated walks
-- **📸 Image Upload** - Local image storage for walks and regions
-- **📊 Advanced Filtering** - Search walks by name, sort by various criteria, and paginate results
+- **📸 Local Image Storage** - Secure image upload with validation (JPG, PNG, max 10MB)
+- **🔍 Advanced Filtering** - Search walks by name, sort by criteria, and paginate results
 - **🛡️ Security** - Input validation, model validation, and comprehensive error handling
-- **📝 Logging** - Structured logging with Serilog for monitoring and debugging
-- **📚 API Documentation** - Interactive Swagger/OpenAPI documentation
-- **🧪 Clean Architecture** - Repository pattern, dependency injection, and separation of concerns
+- **📝 Structured Logging** - Serilog integration with file and console output
+- **📚 Interactive Documentation** - Swagger/OpenAPI with JWT authentication support
+- **🏗️ Clean Architecture** - Repository pattern, dependency injection, and separation of concerns
+- **⚡ Custom Middleware** - Global exception handling with unique error tracking
 
 ## 🏗️ Architecture
 
 The application follows clean architecture principles with:
 
-- **Controllers Layer** - Handle HTTP requests and responses
+- **Controllers Layer** - Handle HTTP requests and responses with role-based authorization
 - **Repository Layer** - Data access abstraction with repository pattern
-- **Service Layer** - Business logic and data transformation
-- **Domain Models** - Core business entities
+- **Domain Models** - Core business entities (Region, Walk, Difficulty, Image)
 - **DTOs** - Data transfer objects for API contracts
-- **Middleware** - Cross-cutting concerns like exception handling
+- **Custom Middleware** - Global exception handling and error tracking
+- **Custom Filters** - Model validation and request processing
 
 ## 🛠️ Tech Stack
 
@@ -56,9 +58,9 @@ The application follows clean architecture principles with:
 | **Entity Framework Core** | 8.0 | ORM and database access |
 | **SQL Server** | 2022 | Primary database |
 | **ASP.NET Core Identity** | 8.0 | User authentication and authorization |
-| **JWT Bearer** | 8.0 | Token-based authentication |
+| **JWT Bearer** | 8.0 | Token-based authentication (10-min expiry) |
 | **AutoMapper** | 12.0.1 | Object-to-object mapping |
-| **Serilog** | 3.1.1 | Structured logging |
+| **Serilog** | 3.1.1 | Structured logging (file + console) |
 | **Swagger/OpenAPI** | 6.5.0 | API documentation |
 
 ## 🚀 Getting Started
@@ -78,8 +80,13 @@ The application follows clean architecture principles with:
    ```
 
 2. **Configure the database**
-   - Update connection strings in `appsettings.json` or `appsettings.Development.json`
-   - Ensure SQL Server is running and accessible
+   - Update connection strings in `appsettings.json`:
+   ```json
+   "ConnectionStrings": {
+     "NZWalksConnectionString": "Server=localhost;Database=NZWalksDb;Trusted_Connection=true;TrustServerCertificate=true",
+     "NZWalksAuthConnectionString": "Server=localhost;Database=NZWalksAuthDb;Trusted_Connection=true;TrustServerCertificate=true"
+   }
+   ```
 
 3. **Run database migrations**
    ```bash
@@ -124,7 +131,7 @@ https://localhost:7044
 
 | Method | Endpoint | Description | Authorization |
 |--------|----------|-------------|---------------|
-| `GET` | `/regions` | Get all regions | Reader, Writer |
+| `GET` | `/regions` | Get all regions | Public |
 | `GET` | `/regions/{id}` | Get region by ID | Reader, Writer |
 | `POST` | `/regions` | Create new region | Writer |
 | `PUT` | `/regions/{id}` | Update region | Writer |
@@ -136,15 +143,15 @@ https://localhost:7044
 |--------|----------|-------------|---------------|
 | `GET` | `/walks` | Get all walks (with filtering) | Public |
 | `GET` | `/walks/{id}` | Get walk by ID | Public |
-| `POST` | `/walks` | Create new walk | Writer |
-| `PUT` | `/walks/{id}` | Update walk | Writer |
-| `DELETE` | `/walks/{id}` | Delete walk | Writer |
+| `POST` | `/walks` | Create new walk | Public |
+| `PUT` | `/walks/{id}` | Update walk | Public |
+| `DELETE` | `/walks/{id}` | Delete walk | Public |
 
 ### Images Endpoints
 
 | Method | Endpoint | Description | Authorization |
 |--------|----------|-------------|---------------|
-| `POST` | `/images/upload` | Upload image | Writer |
+| `POST` | `/images/upload` | Upload image (max 10MB, JPG/PNG) | Public |
 
 ### Query Parameters for Walks
 
@@ -153,8 +160,8 @@ The walks endpoint supports advanced filtering:
 - `name` - Filter walks by name (partial match)
 - `sortBy` - Sort by field (name, length, etc.)
 - `isAscending` - Sort direction (true/false)
-- `pageNumber` - Page number for pagination
-- `pageSize` - Number of items per page
+- `pageNumber` - Page number for pagination (default: 1)
+- `pageSize` - Number of items per page (default: 10)
 
 **Example:**
 ```
@@ -203,24 +210,39 @@ public class Difficulty
 }
 ```
 
+#### Image
+```csharp
+public class Image
+{
+    public Guid Id { get; set; }
+    public IFormFile File { get; set; }
+    public string FileName { get; set; }
+    public string? FileDescription { get; set; }
+    public string FileExtension { get; set; }
+    public long FileSizeInBytes { get; set; }
+    public string FilePath { get; set; }
+}
+```
+
 ## 🔐 Authentication & Authorization
 
-### JWT Token Structure
-The API uses JWT tokens for authentication with the following claims:
-- User ID
-- Email
-- Roles (Reader, Writer)
+### JWT Token Configuration
+- **Expiration**: 10 minutes
+- **Algorithm**: HMAC SHA256
+- **Claims**: Email, Roles (Reader, Writer)
 
 ### Role-Based Access Control
 
 | Role | Permissions |
 |------|-------------|
-| **Reader** | Read access to regions and walks |
-| **Writer** | Full CRUD access to all resources |
+| **Reader** | Read access to regions (by ID) |
+| **Writer** | Full CRUD access to regions |
+
+**Note**: Walks endpoints are currently public (no authorization required)
 
 ### Authentication Flow
 
-1. **Register** - Create a new user account
+1. **Register** - Create a new user account with roles
 2. **Login** - Authenticate and receive JWT token
 3. **Authorize** - Include token in Authorization header: `Bearer {token}`
 
@@ -231,9 +253,9 @@ NZWalks/
 ├── NZWalks.API/                 # Main API project
 │   ├── Controllers/             # API controllers
 │   │   ├── AuthController.cs    # Authentication endpoints
-│   │   ├── RegionsController.cs # Region management
-│   │   ├── WalksController.cs   # Walk management
-│   │   └── ImagesController.cs  # Image upload
+│   │   ├── RegionsController.cs # Region management (role-based auth)
+│   │   ├── WalksController.cs   # Walk management (public)
+│   │   └── ImagesController.cs  # Image upload (public)
 │   ├── Data/                    # Database contexts
 │   │   ├── NZWalksDBContext.cs  # Main database context
 │   │   └── NZWalksAuthDbContext.cs # Authentication context
@@ -243,10 +265,13 @@ NZWalks/
 │   ├── Repositories/            # Data access layer
 │   │   ├── IRegionRepository.cs
 │   │   ├── IWalkRepository.cs
+│   │   ├── IImageRepository.cs
 │   │   └── SQL implementations
 │   ├── Mappings/                # AutoMapper profiles
 │   ├── Middlewares/             # Custom middleware
+│   │   └── ExceptionHandlerMiddleware.cs # Global error handling
 │   ├── CustomActionFilters/     # Custom validation filters
+│   │   └── ValidateModelAttribute.cs # Model validation
 │   └── Migrations/              # Entity Framework migrations
 └── README.md
 ```
@@ -289,12 +314,27 @@ dotnet ef migrations remove
    - Configure environment variables for base URL
    - Execute requests directly from the file
 
-### Logging
+### Image Upload Features
+
+- **Supported Formats**: JPG, JPEG, PNG
+- **Maximum Size**: 10MB
+- **Storage**: Local file system in `Images/` directory
+- **Validation**: Automatic file type and size validation
+
+### Error Handling
+
+- **Global Exception Middleware**: Catches all unhandled exceptions
+- **Unique Error IDs**: Each error gets a GUID for tracking
+- **Structured Logging**: Errors logged with Serilog
+- **Custom Error Response**: Consistent error format
+
+### Logging Configuration
 
 The application uses Serilog for structured logging:
-- Console output for development
-- File logging with daily rotation
-- Log files stored in `Logs/` directory
+- **Console Output**: For development debugging
+- **File Logging**: Daily rotation in `Logs/` directory
+- **Log Level**: Information and above
+- **Format**: Structured JSON logging
 
 ## 🤝 Contributing
 
@@ -313,6 +353,7 @@ We welcome contributions! Please follow these steps:
 - Include unit tests for new features
 - Update API documentation
 - Ensure all tests pass before submitting PR
+- Test image upload functionality with various file types
 
 ## 📄 License
 
@@ -323,6 +364,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Built with ASP.NET Core 8.0
 - Inspired by New Zealand's beautiful walking trails
 - Uses modern development practices and patterns
+- Implements secure authentication and authorization
 
 ---
 
